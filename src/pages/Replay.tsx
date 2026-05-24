@@ -1,6 +1,7 @@
 import { NoirLayout } from "@/components/NoirLayout"
 import { Panel } from "@/components/Panel"
 import { cn } from "@/lib/utils"
+import { apiGet } from "@/lib/api"
 import type { ReplayPayload } from "@shared/game"
 import { Download, Loader2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
@@ -19,9 +20,8 @@ export default function Replay() {
       setBusy(true)
       setError(null)
       try {
-        const r = await fetch(`/api/games/${id}/replay`)
-        const j = (await r.json()) as { success: boolean; replay?: ReplayPayload; error?: string }
-        if (!j.success || !j.replay) throw new Error(j.error ?? "加载失败")
+        const j = await apiGet<{ replay: ReplayPayload }>(`/api/games/${id}/replay`)
+        if (!j.success || !("replay" in j)) throw new Error("error" in j ? j.error : "加载失败")
         if (!cancelled) setReplay(j.replay)
       } catch (e) {
         if (!cancelled) setError((e as Error).message)

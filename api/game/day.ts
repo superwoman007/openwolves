@@ -37,6 +37,12 @@ export const applyVoteAction = (g: GameRuntime, s: SeatRuntime, action: HumanAct
     throw new Error("invalid action for current phase")
   }
   g.dayState = g.dayState ?? { votes: new Map(), spoken: new Set() }
+
+  // Reject duplicate vote submissions
+  if (g.dayState.votes.has(s.seat)) {
+    throw new Error("already voted this round")
+  }
+
   if (action.targetSeat !== null && !isAliveSeat(g, action.targetSeat)) {
     throw new Error("target seat not alive")
   }
@@ -111,39 +117,45 @@ const resolveVote = (g: GameRuntime) => {
 
   if (eliminated === null) {
     g.events.push({ t: "result", ts: Date.now(), text: "投票无人出局" })
-  } else {
-    mustSeat(g, eliminated).alive = false
-    g.events.push({
-      t: "result",
-      ts: Date.now(),
-      text: `投票放逐：${eliminated}号`,
-      data: { seat: eliminated },
-    })
-
-    const s = mustSeat(g, eliminated)
-    if (s.role === "hunter") {
-      g.hunterState = {
-        source: "day_vote",
-        dyingSeats: [eliminated],
-        shots: new Map(),
-      }
-      g.phase = "resolve"
-      g.events.push({
-        t: "system",
-        ts: Date.now(),
-        text: `猎人 ${eliminated} 号被放逐，请决定是否开枪`,
-      })
-      return
-    }
+    proceedToNight(g)
+    return
   }
 
+  mustSeat(g, eliminated).alive = false
+  g.events.push({
+    t: "result",
+    ts: Date.now(),
+    text: `投票放逐：${eliminated}号`,
+    data: { seat: eliminated },
+  })
+
+  const s = mustSeat(g, eliminated)
+  if (s.role === "hunter") {
+    g.hunterState = {
+      source: "day_vote",
+      dyingSeats: [eliminated],
+      shots: new Map(),
+    }
+    g.phase = "resolve"
+    g.events.push({
+      t: "system",
+      ts: Date.now(),
+      text: `猎人 ${eliminated} 号被放逐，请决定是否开枪`,
+    })
+    return
+  }
+
+  // 非猎人被放逐 → 进入遗言阶段
   const winner = computeWinner(g)
   if (winner) {
     endGame(g, winner)
     return
   }
 
-  proceedToNight(g)
+  g.dayState = g.dayState ?? { votes: new Map(), spoken: new Set() }
+  g.dayState.eliminatedSeat = eliminated
+  g.phase = "day_last_words"
+  g.events.push({ t: "phase", ts: Date.now(), phase: g.phase, day: g.day })
 }
 
 const proceedToNight = (g: GameRuntime) => {
@@ -159,4 +171,19 @@ const proceedToNight = (g: GameRuntime) => {
   g.night = createNightState()
   g.dayState = null
   g.events.push({ t: "phase", ts: Date.now(), phase: g.phase, day: g.day })
+}
+
+/**
+ * 被放逐玩家发表遗言后，记录发言并进入夜晚。
+ */
+export const resolveLastWords = (g: GameRuntime, seat: number, text: string) => {
+  g.events.push({ t: "chat_public", ts: Date.now(), seat, text })
+  proceedToNight(g)
+}
+
+/**
+ * 跳过遗言（超时或玩家选择不发言），直接进入夜晚。
+ */
+export const skipLastWords = (g: GameRuntime) => {
+  proceedToNight(g)
 }

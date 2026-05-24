@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback } from "react"
 import type { AIProvider, AIProviderConfig } from "@shared/game"
 import { cn } from "@/lib/utils"
+import { apiPost } from "@/lib/api"
 import { Loader2, Plus, Trash2, Wifi, WifiOff, Pencil, Check, X } from "lucide-react"
 
 const STORAGE_KEY = "noir-werewolf-ai-presets"
@@ -107,21 +108,18 @@ export default function AiPresetManager({ presets, onChange }: AiPresetManagerPr
     setTestingId(preset.id)
     setTestResult(null)
     try {
-      const res = await fetch("/api/test-ai", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          baseUrl: preset.baseUrl,
-          apiKey: preset.apiKey,
-          model: preset.model,
-          temperature: preset.temperature,
-        }),
+      const data = await apiPost<{ content?: string }>("/api/test-ai", {
+        baseUrl: preset.baseUrl,
+        apiKey: preset.apiKey,
+        model: preset.model,
+        temperature: preset.temperature,
       })
-      const data = (await res.json()) as { success: boolean; content?: string; error?: string }
       setTestResult({
         id: preset.id,
         success: data.success,
-        message: data.success ? `连通成功：${data.content?.slice(0, 50) ?? ""}` : `连通失败：${data.error ?? ""}`,
+        message: data.success && "content" in data
+          ? `连通成功：${data.content?.slice(0, 50) ?? ""}`
+          : `连通失败：${"error" in data ? data.error : ""}`,
       })
     } catch (e) {
       setTestResult({ id: preset.id, success: false, message: `请求异常：${(e as Error).message}` })

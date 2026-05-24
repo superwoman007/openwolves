@@ -21,7 +21,15 @@ export const handleTestAi = async (req: Request, res: Response) => {
     )
     res.json({ success: true, content })
   } catch (e) {
-    res.json({ success: false, error: (e as Error).message })
+    const msg = (e as Error).message
+    // Only expose safe error info to client, not raw provider response
+    const safeMsg = msg.startsWith("OPENAI_API_KEY")
+      ? msg
+      : msg.includes("error:")
+        ? "LLM provider returned an error. Check your API key and base URL."
+        : msg
+    console.error("[testAi] LLM error:", msg)
+    res.json({ success: false, error: safeMsg })
   }
 }
 

@@ -8,6 +8,7 @@ import type {
 import { createRng } from "./rng.js"
 import {
   aliveSeatNumbers,
+  createAgentRuntimeState,
   createNightState,
   mustSeat,
   type GameRuntime,
@@ -20,8 +21,11 @@ import {
   applyVoteAction,
   forceResolveVote,
   maybeResolveVote,
+  resolveLastWords,
+  skipLastWords,
 } from "./day.js"
 import { applyHunterAction, maybeAdvanceHunter } from "./hunter.js"
+import { ensureAgentRegistry, syncAgentRegistrySeats } from "./agents/registry.js"
 
 export const validateConfig = (config: GameConfig) => {
   if (!Array.isArray(config.seats) || config.seats.length < 4) {
@@ -68,6 +72,7 @@ export const createRuntime = (gameId: string, config: GameConfig): GameRuntime =
     night: null,
     dayState: null,
     hunterState: null,
+    agentState: createAgentRuntimeState(),
     thinkingSeats: new Set(),
   }
 }
@@ -76,11 +81,13 @@ export const startGame = (g: GameRuntime) => {
   if (g.phase !== "lobby") {
     throw new Error("game already started")
   }
+  ensureAgentRegistry(g)
   const roles = [...g.config.rolePool]
   g.rng.shuffleInPlace(roles)
   g.seats.forEach((s, idx) => {
     s.role = roles[idx]
   })
+  syncAgentRegistrySeats(g)
   g.events.push({ t: "system", ts: Date.now(), text: "身份已分配" })
 
   g.day = 1
@@ -134,6 +141,15 @@ export const getPrivateState = (g: GameRuntime, seat: number): GamePrivateState 
 
 export const submitAction = (g: GameRuntime, seat: number, action: HumanAction) => {
   const s = mustSeat(g, seat)
+
+  // 遗言阶段允许已死亡玩家发言
+  if (g.phase === "day_last_words") {
+    if (action.t !== "chat_public") throw new Error("invalid action for last words")
+    if (g.dayState?.eliminatedSeat !== seat) throw new Error("only eliminated player can speak last words")
+    resolveLastWords(g, seat, action.text)
+    return
+  }
+
   if (!s.alive) throw new Error("seat is not alive")
   if (!s.role) throw new Error("game not started")
 
@@ -170,6 +186,10 @@ export const advance = (g: GameRuntime) => {
   }
   if (g.phase === "day_vote" || g.phase === "day_vote_pk") {
     forceResolveVote(g)
+    return
+  }
+  if (g.phase === "day_last_words") {
+    skipLastWords(g)
     return
   }
   throw new Error("cannot advance in current phase")

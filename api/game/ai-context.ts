@@ -46,7 +46,8 @@ export const buildAiContext = (g: GameRuntime, seat: number) => {
     const checks: Array<{ target: number; isWolf: boolean }> = []
     for (const e of g.events) {
       if (e.t === "action" && e.action === "seer_check" && e.seat === seat) {
-        const target = (e.payload as any)?.targetSeat
+        const payload = e.payload as Record<string, unknown> | undefined
+        const target = payload?.targetSeat
         if (typeof target === "number") {
           const targetRole = g.seats.find((x) => x.seat === target)?.role
           checks.push({ target, isWolf: targetRole === "werewolf" })

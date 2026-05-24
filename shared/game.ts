@@ -37,6 +37,7 @@ export type GameConfig = {
   seats: SeatConfig[]
   rolePool: Role[]
   rngSeed?: string
+  password?: string
   phaseTimers?: {
     speechSeconds?: number
     voteSeconds?: number
@@ -49,6 +50,7 @@ export type GamePhase =
   | "day_speech"
   | "day_vote"
   | "day_vote_pk"
+  | "day_last_words"
   | "resolve"
   | "ended"
 

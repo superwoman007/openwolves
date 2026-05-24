@@ -2,6 +2,7 @@ import { NoirLayout } from "@/components/NoirLayout"
 import { Panel } from "@/components/Panel"
 import { ActionPanel } from "@/components/game/ActionPanel"
 import { cn } from "@/lib/utils"
+import { apiGet, apiPost, createAuthEventSource } from "@/lib/api"
 import { useStaggeredEvents } from "@/hooks/useStaggeredEvents"
 import type { GameConfig, GameEvent, GamePrivateState, GamePublicState, HumanAction, ReplayPayload, Role, SeatConfig } from "@shared/game"
 import { ArrowRight, Loader2 } from "lucide-react"
@@ -14,6 +15,7 @@ const phaseLabel: Record<GamePublicState["phase"], string> = {
   day_speech: "白天·发言",
   day_vote: "白天·投票",
   day_vote_pk: "白天·PK投票",
+  day_last_words: "白天·遗言",
   resolve: "结算",
   ended: "结束",
 }
@@ -56,9 +58,8 @@ export default function Game() {
     let cancelled = false
     const load = async () => {
       try {
-        const r = await fetch(`/api/games/${id}/replay`)
-        const j = (await r.json()) as { success: boolean; replay?: ReplayPayload; error?: string }
-        if (!j.success || !j.replay) throw new Error(j.error ?? "加载失败")
+        const j = await apiGet<{ replay: ReplayPayload }>(`/api/games/${id}/replay`)
+        if (!j.success || !("replay" in j)) throw new Error("error" in j ? j.error : "加载失败")
         if (!cancelled) setConfig(j.replay.config)
       } catch (e) {
         if (!cancelled) setError((e as Error).message)
@@ -73,7 +74,7 @@ export default function Game() {
   useEffect(() => {
     if (!id) return
     setError(null)
-    const es = new EventSource(`/api/games/${id}/events`)
+    const es = createAuthEventSource(`/api/games/${id}/events`)
     esRef.current = es
 
     const onState = (ev: MessageEvent) => {
@@ -97,9 +98,8 @@ export default function Game() {
     let cancelled = false
     const load = async () => {
       try {
-        const r = await fetch(`/api/games/${id}/state/private?seat=${selfSeat}`)
-        const j = (await r.json()) as { success: boolean; state?: GamePrivateState; error?: string }
-        if (!j.success || !j.state) throw new Error(j.error ?? "加载私密信息失败")
+        const j = await apiGet<{ state: GamePrivateState }>(`/api/games/${id}/state/private`)
+        if (!j.success || !("state" in j)) throw new Error("error" in j ? j.error : "加载私密信息失败")
         if (!cancelled) setPriv(j.state)
       } catch (e) {
         if (!cancelled) setError((e as Error).message)
@@ -124,14 +124,9 @@ export default function Game() {
     setBusy(true)
     setError(null)
     try {
-      const r = await fetch(`/api/games/${id}/action`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ seat: selfSeat, action }),
-      })
-      const j = (await r.json()) as { success: boolean; error?: string; state?: GamePublicState }
-      if (!j.success) throw new Error(j.error ?? "提交失败")
-      if (j.state) setState(j.state)
+      const j = await apiPost<{ state?: GamePublicState }>(`/api/games/${id}/action`, { seat: selfSeat, action })
+      if (!j.success) throw new Error("error" in j ? j.error : "提交失败")
+      if ("state" in j && j.state) setState(j.state)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -144,10 +139,9 @@ export default function Game() {
     setBusy(true)
     setError(null)
     try {
-      const r = await fetch(`/api/games/${id}/advance`, { method: "POST" })
-      const j = (await r.json()) as { success: boolean; error?: string; state?: GamePublicState }
-      if (!j.success) throw new Error(j.error ?? "推进失败")
-      if (j.state) setState(j.state)
+      const j = await apiPost<{ state?: GamePublicState }>(`/api/games/${id}/advance`)
+      if (!j.success) throw new Error("error" in j ? j.error : "推进失败")
+      if ("state" in j && j.state) setState(j.state)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -319,9 +313,9 @@ function EventCard({ e, idx }: { e: GameEvent; idx: number }) {
         ) : e.t === "action" ? (
           <span className="text-white/60">
             {e.seat}号行动：{e.action}
-            {e.payload && typeof e.payload === "object" && Object.keys(e.payload).length > 0 && (
+            {(e.payload != null && typeof e.payload === "object" && Object.keys(e.payload as Record<string, unknown>).length > 0) ? (
               <span className="ml-1 text-white/35">{JSON.stringify(e.payload)}</span>
-            )}
+            ) : null}
           </span>
         ) : e.t === "chat_private" ? (
           <span className="text-white/60">

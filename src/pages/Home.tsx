@@ -1,6 +1,7 @@
 import { Panel } from "@/components/Panel"
 import { NoirLayout } from "@/components/NoirLayout"
 import { cn } from "@/lib/utils"
+import { joinGame } from "@/lib/api"
 import type { AIProviderConfig, GameConfig, Role, SeatConfig } from "@shared/game"
 import AiPresetManager, { loadPresets, type AIModelPreset } from "@/components/AiPresetManager"
 import { Loader2, Shuffle, Sparkles } from "lucide-react"
@@ -165,7 +166,19 @@ export default function Home() {
       const j1 = (await r1.json()) as { success: boolean; gameId?: string; error?: string }
       if (!j1.success || !j1.gameId) throw new Error(j1.error ?? "创建失败")
 
-      const r2 = await fetch(`/api/games/${j1.gameId}/start`, { method: "POST" })
+      // Join to get auth token before starting (required for protected endpoints)
+      if (selfSeat !== null) {
+        const joinRes = await joinGame(j1.gameId, selfSeat)
+        if (!joinRes.success) throw new Error("error" in joinRes ? joinRes.error : "加入失败")
+      }
+
+      const r2 = await fetch(`/api/games/${j1.gameId}/start`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(selfSeat !== null ? { authorization: `Bearer ${sessionStorage.getItem("game-token") ?? ""}` } : {}),
+        },
+      })
       const j2 = (await r2.json()) as { success: boolean; error?: string }
       if (!j2.success) throw new Error(j2.error ?? "开始失败")
 

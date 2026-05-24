@@ -8,6 +8,7 @@ import express, {
   type NextFunction,
 } from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import path from 'path'
 import { existsSync } from 'fs'
 import dotenv from 'dotenv'
@@ -15,6 +16,10 @@ import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import gamesRoutes from './routes/games.js'
 import testAiRoutes from './routes/testAi.js'
+import { generalLimiter } from './middleware/rate-limit.js'
+import { requestLogger } from './middleware/requestLogger.js'
+import { getTokenCount } from './middleware/auth.js'
+import { logger } from './lib/logger.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -25,16 +30,36 @@ dotenv.config()
 
 const app: express.Application = express()
 
-app.use(cors())
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+// Security headers
+app.use(helmet())
+
+// Request logging
+app.use(requestLogger)
+
+// CORS whitelist
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:5173']
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  maxAge: 86400,
+}))
+
+// Rate limiting
+app.use(generalLimiter)
+
+app.use(express.json({ limit: '1mb' }))
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 /**
  * API Routes
  */
 app.use('/api/auth', authRoutes)
 app.use('/api/games', gamesRoutes)
-app.use('/api/test-ai', testAiRoutes)
+
+// testAi only available in non-production
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/test-ai', testAiRoutes)
+}
 
 /**
  * Serve static files in production / e2e
@@ -54,9 +79,18 @@ if (existsSync(distPath)) {
 app.use(
   '/api/health',
   (req: Request, res: Response, next: NextFunction): void => {
+    const memUsage = process.memoryUsage()
     res.status(200).json({
       success: true,
       message: 'ok',
+      uptime: Math.floor(process.uptime()),
+      tokens: getTokenCount(),
+      memory: {
+        rss: Math.round(memUsage.rss / 1024 / 1024),
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+      },
+      llm: !!process.env.OPENAI_API_KEY,
     })
   },
 )
@@ -65,6 +99,10 @@ app.use(
  * error handler middleware
  */
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error(`${req.method} ${req.url}`, {
+    error: error.message,
+    ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+  })
   res.status(500).json({
     success: false,
     error: 'Server internal error',

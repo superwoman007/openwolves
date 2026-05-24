@@ -136,9 +136,12 @@ export const maybeAdvanceNight = (g: GameRuntime) => {
     if (!nightCollectComplete(g)) return
     g.night.wolfVictim = computeWolfVictim(g)
     if (hasAliveRole(g, "witch")) {
-      g.night.stage = "witch"
-      g.night.witch = null
-      return
+      const witchSeat = g.seats.find((s) => s.alive && s.role === "witch")
+      if (witchSeat && (!witchSeat.hand.witchAntidoteUsed || !witchSeat.hand.witchPoisonUsed)) {
+        g.night.stage = "witch"
+        g.night.witch = null
+        return
+      }
     }
     resolveNight(g)
     return

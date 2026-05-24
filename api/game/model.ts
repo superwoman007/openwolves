@@ -6,6 +6,7 @@ import type {
   SeatConfig,
 } from "../../shared/game.js"
 import type { Rng } from "./rng.js"
+import type { AgentRegistry } from "./agents/registry.js"
 
 export type SeatRuntime = SeatConfig & {
   role?: Role
@@ -37,12 +38,20 @@ export type DayState = {
   votes: Map<number, number | null>
   spoken: Set<number>
   pkCandidates?: number[]
+  eliminatedSeat?: number
 }
 
 export type HunterState = {
   source: "night" | "day_vote"
   dyingSeats: number[]
   shots: Map<number, number | null>
+}
+
+export type AgentRuntimeState = {
+  registry: AgentRegistry | null
+  lastModeratorAnnouncementKey: string | null
+  lastModeratorHintKey: string | null
+  circuitBreaker: Map<number, number>
 }
 
 export type GameRuntime = {
@@ -56,6 +65,7 @@ export type GameRuntime = {
   night: NightState | null
   dayState: DayState | null
   hunterState: HunterState | null
+  agentState: AgentRuntimeState
   thinkingSeats: Set<number>
   onThinkingChange?: () => void
 }
@@ -68,6 +78,17 @@ export const createNightState = (): NightState => ({
   wolfVictim: null,
   witch: null,
   wolfChat: [],
+})
+
+/**
+ * 创建单局对局的 Agent 运行时状态。
+ * @returns 返回包含注册表引用与裁判调度缓存键的初始状态。
+ */
+export const createAgentRuntimeState = (): AgentRuntimeState => ({
+  registry: null,
+  lastModeratorAnnouncementKey: null,
+  lastModeratorHintKey: null,
+  circuitBreaker: new Map(),
 })
 
 export const aliveSeatNumbers = (g: GameRuntime) =>
