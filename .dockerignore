@@ -1,0 +1,17 @@
+node_modules
+dist
+data
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+*.log
+test-results
+.vscode
+.idea
+.trae
+.DS_Store
+*.zip
+deploy/certs
+.claude

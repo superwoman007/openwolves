@@ -35,6 +35,9 @@ dist-ssr
 # Runtime data
 data/
 
+# SSL certificates
+deploy/certs/
+
 # Test results
 test-results/
 
