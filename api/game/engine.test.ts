@@ -95,10 +95,12 @@ describe("startGame", () => {
   it("assigns roles and starts night", () => {
     const g = createRuntime("g1", makeConfig());
     startGame(g);
+    const assignmentEvent = g.events.find((e) => e.t === "system" && e.text === "身份已分配");
     expect(g.phase).toBe("night");
     expect(g.day).toBe(1);
     expect(g.seats.every((s) => s.role !== undefined)).toBe(true);
-    expect(g.events.some((e) => e.t === "system" && e.text === "身份已分配")).toBe(true);
+    expect(assignmentEvent).toBeTruthy();
+    expect((assignmentEvent as { data?: { seatRoles?: Array<{ seat: number; role: string }> } }).data?.seatRoles).toHaveLength(g.seats.length);
     expect(g.events.some((e) => e.t === "phase" && e.phase === "night")).toBe(true);
   });
 

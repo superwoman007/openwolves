@@ -57,6 +57,11 @@ export class GameService {
     return state
   }
 
+  async canStartWithoutAuth(gameId: string): Promise<boolean> {
+    const g = await this.mustGet(gameId)
+    return g.config.seats.every((seat) => seat.kind === "ai")
+  }
+
   getPublicState(gameId: string): GamePublicState {
     return getPublicState(this.mustGetSync(gameId))
   }
@@ -123,14 +128,17 @@ export class GameService {
     try {
       const g = this.games.get(gameId)
       if (!g || g.phase === "ended") return false
-      const progressed = await runAuto(g)
-      if (progressed) {
-        // Trim events if they exceed the cap (keep the most recent)
+      const flushProgress = () => {
+        // 自动推进过程中每完成一步都立刻广播，保证前端能实时看到关键事件。
         if (g.events.length > MAX_EVENTS) {
           g.events = g.events.slice(-MAX_EVENTS)
         }
         this.persistEvents(gameId, g)
         this.publish(gameId)
+      }
+      const progressed = await runAuto(g, flushProgress)
+      if (progressed) {
+        flushProgress()
       }
       return progressed
     } finally {

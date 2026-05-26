@@ -17,7 +17,7 @@ export type AIModelPreset = {
 }
 
 const AI_PROVIDER_PRESETS: Record<Exclude<AIProvider, "mock">, { label: string; baseUrl: string; model: string }> = {
-  deepseek: { label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+  deepseek: { label: "DeepSeek", baseUrl: "https://api.deepseek.com", model: "deepseek-v4-pro" },
   doubao: { label: "Doubao", baseUrl: "https://ark.cn-beijing.volces.com/api/v3", model: "doubao-seed-1-8" },
   glm: { label: "GLM", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.7" },
   mimo: { label: "MiMo", baseUrl: "https://api.xiaomimimo.com/v1", model: "mimo-v2-pro" },
@@ -76,11 +76,11 @@ export default function AiPresetManager({ presets, onChange }: AiPresetManagerPr
     const id = generateId()
     const newPreset: AIModelPreset = {
       id,
-      name: "新模型",
-      provider: "custom",
-      baseUrl: "",
+      name: "DeepSeek",
+      provider: "deepseek",
+      baseUrl: AI_PROVIDER_PRESETS.deepseek.baseUrl,
       apiKey: "",
-      model: "",
+      model: AI_PROVIDER_PRESETS.deepseek.model,
       temperature: 0.7,
     }
     const next = [...presets, newPreset]
@@ -109,6 +109,7 @@ export default function AiPresetManager({ presets, onChange }: AiPresetManagerPr
     setTestResult(null)
     try {
       const data = await apiPost<{ content?: string }>("/api/test-ai", {
+        provider: preset.provider,
         baseUrl: preset.baseUrl,
         apiKey: preset.apiKey,
         model: preset.model,

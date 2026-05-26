@@ -144,12 +144,15 @@ export class Scheduler {
    * 持续运行调度逻辑直到对局结束或无需进一步推进。
    * @returns 若调度流程完成则返回 true。
    */
-  async runAuto(): Promise<boolean> {
+  async runAuto(onStep?: () => void): Promise<boolean> {
     let steps = 0
     while (steps < 200) {
       if (this.g.phase === "ended") return true
       steps += 1
       const progressed = await this.runOnce()
+      if (progressed) {
+        onStep?.()
+      }
       if (!progressed) return true
     }
     return true
@@ -590,6 +593,30 @@ export class Scheduler {
     }
   }
 
+  private getModeratorCommentaryTarget(): GameEvent | null {
+    for (let i = this.g.events.length - 1; i >= 0; i -= 1) {
+      const event = this.g.events[i]
+      if (event.t === "system") {
+        const data = event.data
+        if (typeof data === "object" && data !== null && "kind" in data && data.kind === "moderator_commentary") {
+          continue
+        }
+        continue
+      }
+      if (event.t === "chat_private" || event.t === "chat_wolf") continue
+      return event
+    }
+    return null
+  }
+
+  private getModeratorCommentaryKey(event: GameEvent): string {
+    if (event.t === "phase") return `${event.t}:${event.ts}:${event.phase}:${event.day}`
+    if (event.t === "chat_public") return `${event.t}:${event.ts}:${event.seat}:${event.text}`
+    if (event.t === "action") return `${event.t}:${event.ts}:${event.seat}:${event.action}`
+    if (event.t === "result") return `${event.t}:${event.ts}:${event.text}`
+    return `${event.t}:${event.ts}`
+  }
+
   /**
    * 让裁判 Agent 负责阶段播报与流程提示，避免重复插入相同主持文案。
    * @returns 若本次新增了主持事件则返回 true，否则返回 false。
@@ -621,6 +648,30 @@ export class Scheduler {
       this.g.agentState.lastModeratorHintKey = hintKey
       this.g.events.push({ t: "system", ts: Date.now(), text: directive.hint })
       return true
+    }
+
+    const commentaryTarget = this.getModeratorCommentaryTarget()
+    if (commentaryTarget) {
+      const commentaryKey = this.getModeratorCommentaryKey(commentaryTarget)
+      if (commentaryKey !== this.g.agentState.lastModeratorCommentaryKey) {
+        this.g.agentState.lastModeratorCommentaryKey = commentaryKey
+        const text = await this.registry.moderator.commentOnSituation({
+          phase: this.g.phase,
+          day: this.g.day,
+          aliveSeats: aliveSeatNumbers(this.g),
+          recentEvent: commentaryTarget,
+          timeline,
+        })
+        if (text) {
+          this.g.events.push({
+            t: "system",
+            ts: Date.now(),
+            text,
+            data: { kind: "moderator_commentary", sourceEventType: commentaryTarget.t },
+          })
+          return true
+        }
+      }
     }
 
     return false

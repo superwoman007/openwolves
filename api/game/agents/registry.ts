@@ -48,7 +48,7 @@ function populateSeatAgents(registry: AgentRegistry, g: GameRuntime) {
  * @returns 返回包含裁判 Agent、座位角色 Agent 与职责边界元数据的注册表。
  */
 export function createAgentRegistry(g: GameRuntime): AgentRegistry {
-  const moderator = new ModeratorAgentImpl()
+  const moderator = new ModeratorAgentImpl(g.config.moderator?.ai)
   const seatAgents = new Map<number, RoleAgent>()
   const registry: AgentRegistry = {
     moderator,

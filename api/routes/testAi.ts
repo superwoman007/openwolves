@@ -2,7 +2,8 @@ import { Router, type Request, type Response } from "express"
 import { openaiCompatChat } from "../llm/openaiCompatible.js"
 
 export const handleTestAi = async (req: Request, res: Response) => {
-  const { baseUrl, apiKey, model, temperature } = req.body as {
+  const { provider, baseUrl, apiKey, model, temperature } = req.body as {
+    provider?: string
     baseUrl?: string
     apiKey?: string
     model?: string
@@ -11,7 +12,7 @@ export const handleTestAi = async (req: Request, res: Response) => {
 
   try {
     const content = await openaiCompatChat(
-      { baseUrl, apiKey, model, temperature },
+      { provider, baseUrl, apiKey, model, temperature },
       [
         {
           role: "user",

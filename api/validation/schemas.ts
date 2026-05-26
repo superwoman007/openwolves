@@ -15,8 +15,13 @@ const SeatConfigSchema = z.object({
   ai: AIProviderConfigSchema.optional(),
 })
 
+const ModeratorConfigSchema = z.object({
+  ai: AIProviderConfigSchema.optional(),
+})
+
 export const GameConfigSchema = z.object({
   seats: z.array(SeatConfigSchema).min(6).max(12),
+  moderator: ModeratorConfigSchema.optional(),
   rolePool: z.array(z.enum(["villager", "werewolf", "seer", "witch", "hunter", "guard"])).min(6).max(12),
   rngSeed: z.string().optional(),
   phaseTimers: z.object({

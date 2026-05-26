@@ -1,4 +1,4 @@
-import type { GameEvent, GamePhase, HumanAction, Role } from "../../../shared/game.js"
+import type { AIProviderConfig, GameEvent, GamePhase, HumanAction, Role } from "../../../shared/game.js"
 
 export type AgentScope = "moderator" | "player"
 
@@ -128,6 +128,14 @@ export type ModeratorFlowDirective = {
   hint?: string
 }
 
+export type ModeratorCommentaryContext = {
+  phase: GamePhase
+  day: number
+  aliveSeats: number[]
+  recentEvent: GameEvent
+  timeline: AgentTimelineContext
+}
+
 export interface BaseGameAgent {
   readonly scope: AgentScope
   readonly responsibilities: AgentResponsibility[]
@@ -144,7 +152,9 @@ export interface RoleAgent extends BaseGameAgent {
 export interface ModeratorAgent extends BaseGameAgent {
   readonly scope: "moderator"
   readonly role: "moderator"
+  readonly aiConfig?: AIProviderConfig
   announcePhase(ctx: ModeratorAnnouncementContext): Promise<string>
   getSpeechOrder(ctx: ModeratorSpeechOrderContext): number[]
   orchestrate(ctx: ModeratorFlowContext): ModeratorFlowDirective
+  commentOnSituation(ctx: ModeratorCommentaryContext): Promise<string | null>
 }

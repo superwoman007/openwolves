@@ -29,6 +29,38 @@ describe("Agent Integration - Full Game", () => {
     expect(systemMessages.some((text) => text.includes("待行动座位"))).toBe(true)
   })
 
+  it("moderator emits commentary for player behavior", async () => {
+    const g = createRuntime("int-moderator-commentary", makeConfig())
+    startGame(g)
+    const scheduler = createScheduler(g)
+    g.phase = "day_speech"
+    g.dayState = { votes: new Map(), spoken: new Set() }
+
+    for (let i = 0; i < 6; i += 1) {
+      await scheduler.runOnce()
+      const commentary = g.events.find(
+        (event) =>
+          event.t === "system"
+          && typeof event.data === "object"
+          && event.data !== null
+          && "kind" in event.data
+          && event.data.kind === "moderator_commentary",
+      )
+      if (commentary) break
+    }
+
+    expect(
+      g.events.some(
+        (event) =>
+          event.t === "system"
+          && typeof event.data === "object"
+          && event.data !== null
+          && "kind" in event.data
+          && event.data.kind === "moderator_commentary",
+      ),
+    ).toBe(true)
+  })
+
   it("werewolf chat is produced before night kill resolution", async () => {
     const g = createRuntime("int-wolf-chat", makeConfig())
     startGame(g)

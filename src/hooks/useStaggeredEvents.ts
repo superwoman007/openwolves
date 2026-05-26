@@ -39,8 +39,10 @@ export function useStaggeredEvents(events: GameEvent[] | undefined) {
     }
 
     if (newEvents.length > 0) {
-      pendingRef.current.push(...newEvents)
-      if (!timerRef.current) {
+      const [firstEvent, ...restEvents] = newEvents
+      setDisplayed((prev) => [...prev, firstEvent])
+      pendingRef.current.push(...restEvents)
+      if (pendingRef.current.length > 0 && !timerRef.current) {
         timerRef.current = setInterval(revealNext, REVEAL_INTERVAL_MS)
       }
     }

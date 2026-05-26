@@ -33,8 +33,13 @@ export type SeatConfig = {
   ai?: AIProviderConfig
 }
 
+export type ModeratorConfig = {
+  ai?: AIProviderConfig
+}
+
 export type GameConfig = {
   seats: SeatConfig[]
+  moderator?: ModeratorConfig
   rolePool: Role[]
   rngSeed?: string
   password?: string
@@ -55,7 +60,7 @@ export type GamePhase =
   | "ended"
 
 export type GameEvent =
-  | { t: "system"; ts: number; text: string }
+  | { t: "system"; ts: number; text: string; data?: unknown }
   | { t: "phase"; ts: number; phase: GamePhase; day: number }
   | { t: "chat_public"; ts: number; seat: number; text: string }
   | {

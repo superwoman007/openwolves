@@ -74,6 +74,56 @@ describe("openaiCompatChat", () => {
     expect(body.response_format).toBeUndefined()
     expect(body.max_tokens).toBeUndefined()
   })
+
+  it("uses DeepSeek chat completions endpoint and request body", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        choices: [{ message: { content: "hello" } }],
+      }),
+    })
+    vi.stubGlobal("fetch", mockFetch)
+
+    await openaiCompatChat(
+      {
+        provider: "deepseek",
+        apiKey: "test-key",
+        baseUrl: "https://api.deepseek.com",
+      },
+      [{ role: "user", content: "test" }],
+    )
+
+    expect(mockFetch.mock.calls[0][0]).toBe("https://api.deepseek.com/chat/completions")
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.model).toBe("deepseek-v4-pro")
+    expect(body.thinking).toEqual({ type: "enabled" })
+    expect(body.reasoning_effort).toBe("high")
+    expect(body.response_format).toEqual({ type: "text" })
+    expect(body.stream).toBe(false)
+    expect(body.max_tokens).toBe(4096)
+  })
+
+  it("detects DeepSeek by baseUrl even without provider", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        choices: [{ message: { content: "hello" } }],
+      }),
+    })
+    vi.stubGlobal("fetch", mockFetch)
+
+    await openaiCompatChat(
+      {
+        apiKey: "test-key",
+        baseUrl: "https://api.deepseek.com",
+      },
+      [{ role: "user", content: "test" }],
+    )
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+    expect(body.model).toBe("deepseek-v4-pro")
+    expect(body.response_format).toEqual({ type: "text" })
+  })
 })
 
 // --- parseLLMDecision ---

@@ -56,10 +56,8 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 app.use('/api/auth', authRoutes)
 app.use('/api/games', gamesRoutes)
 
-// testAi only available in non-production
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api/test-ai', testAiRoutes)
-}
+// 预设页需要在生产构建后也能做模型连通性测试。
+app.use('/api/test-ai', testAiRoutes)
 
 /**
  * Serve static files in production / e2e

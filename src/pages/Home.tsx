@@ -91,15 +91,20 @@ export default function Home() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aiPresets, setAiPresets] = useState<AIModelPreset[]>(() => loadPresets())
+  const [moderatorPresetId, setModeratorPresetId] = useState("mock")
+
+  const effectiveModeratorPresetId = aiPresets.some((preset) => preset.id === moderatorPresetId) ? moderatorPresetId : "mock"
+  const moderatorPreset = aiPresets.find((preset) => preset.id === effectiveModeratorPresetId) ?? aiPresets[0]
 
   const config: GameConfig = useMemo(
     () => ({
       seats,
+      moderator: moderatorPreset ? { ai: presetToAiConfig(moderatorPreset) } : undefined,
       rolePool,
       rngSeed: "noir",
       phaseTimers: { speechSeconds: 60, voteSeconds: 25 },
     }),
-    [rolePool, seats],
+    [moderatorPreset, rolePool, seats],
   )
 
   const humanSeats = useMemo(() => seats.filter((s) => s.kind === "human").map((s) => s.seat), [seats])
@@ -333,11 +338,22 @@ export default function Home() {
                 <div className="mt-2 text-xs text-white/45">提示：自选座位需先把该座位类型改为“人类”。</div>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                <div className="text-[11px] tracking-[0.22em] text-white/45">AI 模型配置</div>
+                <div className="text-[11px] tracking-[0.22em] text-white/45">裁判旁白</div>
+                <select
+                  className="mt-2 w-full rounded-md border border-white/15 bg-black/30 px-2 py-2 text-sm text-white/80"
+                  value={effectiveModeratorPresetId}
+                  onChange={(e) => setModeratorPresetId(e.target.value)}
+                >
+                  {aiPresets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </option>
+                  ))}
+                </select>
                 <div className="mt-2 text-xs text-white/55">
-                  在上方「AI 模型管理」中添加模型配置，每个 AI 座位只需下拉选择即可复用。
+                  裁判会用这个模型做实时旁白和轻度吐槽点评；选择 `mock` 时使用内置幽默旁白。
                 </div>
-                <div className="mt-2 text-xs text-white/35">未填写 Key 或请求失败时会自动回退到 mock 策略。</div>
+                <div className="mt-2 text-xs text-white/35">未填写 Key 或请求失败时，裁判会自动回退到 mock 旁白。</div>
               </div>
             </div>
 

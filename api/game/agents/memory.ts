@@ -82,6 +82,7 @@ export async function updateMemoryLLM(
 
     const response = await openaiCompatChat(
       {
+        provider: aiConfig.provider,
         baseUrl: aiConfig.baseUrl,
         apiKey: aiConfig.apiKey,
         model: aiConfig.model,

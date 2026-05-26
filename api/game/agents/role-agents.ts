@@ -172,24 +172,38 @@ function buildWolfChatMessage(ctx: AgentContext, target: number, existingChats: 
     (s) => s.visibility === "public" && /预言家/.test(s.text)
   )
 
+  const hasPublicSpeechHistory = ctx.timeline.speeches.some((speech) => speech.visibility === "public")
+
+  // 获取目标的威胁特征描述。首夜没有白天公开发言，避免引用不存在的“昨天/昨晚”信息。
+  const baseThreatReasons = [
+    "发言太有带队感，像核心神职",
+    "站边一直很稳，像是知道信息的",
+    "一直在积极找狼，威胁太大",
+    "这个位置如果是预言家我们就崩了",
+  ]
+  const threatReasons = hasPublicSpeechHistory
+    ? [...baseThreatReasons, "昨天发言信息量很大，不能留"]
+    : [...baseThreatReasons, "这个位置像关键身份，首夜不处理后面容易失控"]
+  const threatReason = threatReasons[(target + ctx.game.day) % threatReasons.length]!
+
   if (existingChats.length === 0) {
     // 第一个狼人：提出刀口 + 白天策略
     if (seerClaimed) {
       const templates = [
-        `建议今晚刀${target}号。有人跳预言家了，明天我们其中一个可以考虑悍跳对冲，另一个正常发言带节奏。`,
-        `我觉得刀${target}号比较好，这个位置威胁大。明天白天注意别同时踩同一个人，分散一下火力。`,
-        `优先刀${target}号，像是关键神职。预言家已经跳了，明天我们要想办法把票引到真预言家身上。`,
-        `${target}号必须处理，预言家跳了对我们压力很大。明天我先质疑预言家的查验逻辑，你配合就行。`,
-        `刀${target}号，然后明天我来悍跳预言家，你帮我站边。如果不行就正常混。`,
+        `建议今晚刀${target}号，${threatReason}。有人跳预言家了，明天我们其中一个可以考虑悍跳对冲，另一个正常发言带节奏。我分析了一下，${target}号留着后面会很难打。`,
+        `我觉得刀${target}号比较好，${threatReason}。预言家已经跳了，明天白天注意别同时踩同一个人，分散一下火力。我先想想怎么质疑查验逻辑。`,
+        `优先刀${target}号，${threatReason}。预言家跳了对我们压力很大，明天我们要想办法把票引到真预言家身上。你准备悍跳还是我倒钩？`,
+        `${target}号必须处理，${threatReason}。预言家跳了对我们压力很大，明天我先质疑预言家的查验逻辑，你配合就行。`,
+        `刀${target}号，${threatReason}。然后明天我来悍跳预言家，你帮我站边。如果不行就正常混。`,
       ]
       return templates[variant]!
     }
     const templates = [
-      `建议优先刀${target}号，这个位置发言有带队感，像是核心好人位。明天我们分开站边，别暴露同伴关系。`,
-      `我觉得${target}号威胁最大，建议今晚处理。白天我们一个踩一个保，制造分歧。`,
-      `刀${target}号吧，这个位置如果是神职会很麻烦。明天注意控制发言节奏，别太早暴露。`,
-      `${target}号发言太有逻辑了，留着对我们不利。明天我来带一波节奏踩别人，你低调跟票。`,
-      `今晚刀${target}号，这个位置不处理后面会很难打。白天我们错开发言方向，别让人看出关联。`,
+      `建议优先刀${target}号，${threatReason}。明天我们分开站边，别暴露同伴关系。我观察了一下，好人还没形成统一方向。`,
+      `我觉得${target}号威胁最大，${threatReason}，建议今晚处理。白天我们一个踩一个保，制造分歧，别让好人抱团。`,
+      `刀${target}号吧，${threatReason}。明天注意控制发言节奏，别太早暴露。我先想想明天怎么带节奏。`,
+      `${target}号发言太有逻辑了，${threatReason}，留着对我们不利。明天我来带一波节奏踩别人，你低调跟票。`,
+      `今晚刀${target}号，${threatReason}。这个位置不处理后面会很难打。白天我们错开发言方向，别让人看出关联。`,
     ]
     return templates[variant]!
   }
@@ -201,21 +215,21 @@ function buildWolfChatMessage(ctx: AgentContext, target: number, existingChats: 
 
   if (agreedTarget && agreedTarget === target) {
     const agreeTemplates = [
-      `同意刀${target}号。明天我来踩另一个位置分散注意力，你正常发言就好。`,
-      `可以，${target}号确实该处理。白天我会找机会帮你洗一下，注意别被抱团。`,
-      `没问题，就${target}号。明天我先发言带一下节奏，你后面跟上配合。`,
-      `赞同，${target}号不能留。我明天找个好人位踩一下，把火力引开。`,
-      `OK，统一刀${target}号。白天我们各自发挥，关键时刻再互相配合票型。`,
+      `同意刀${target}号，${threatReason}。明天我来踩另一个位置分散注意力，你正常发言就好。`,
+      `可以，${target}号确实该处理，${threatReason}。白天我会找机会帮你洗一下，注意别被抱团。`,
+      `没问题，就${target}号，${threatReason}。明天我先发言带一下节奏，你后面跟上配合。`,
+      `赞同，${target}号不能留，${threatReason}。我明天找个好人位踩一下，把火力引开。`,
+      `OK，统一刀${target}号，${threatReason}。白天我们各自发挥，关键时刻再互相配合票型。`,
     ]
     return agreeTemplates[variant]!
   }
 
   // 有不同意见时
   const altTemplates = [
-    `我理解你的想法，但我觉得${target}号更危险。不过你定吧，我配合。白天我来处理舆论。`,
-    `${target}号也是个选择。我们先统一刀口，明天白天的事再临场应变。`,
+    `我理解你的想法，但我觉得${target}号更危险，${threatReason}。不过你定吧，我配合。白天我来处理舆论。`,
+    `${target}号也是个选择，${threatReason}。我们先统一刀口，明天白天的事再临场应变。`,
     `都行，听你的也可以。关键是明天别同时暴露，我会注意控制发言方向。`,
-    `我倾向${target}号，但如果你坚持的话我跟你。重要的是白天别互相踩。`,
+    `我倾向${target}号，${threatReason}，但如果你坚持的话我跟你。重要的是白天别互相踩。`,
     `两个目标都有道理，最终听你的。明天我负责把水搅浑，你稳住就好。`,
   ]
   return altTemplates[variant]!
@@ -450,10 +464,17 @@ function buildWolfFakeClaimSpeech(ctx: AgentContext): string {
     ?? ctx.game.aliveSeats.find((s) => !wolves.has(s) && s !== ctx.self.seat)
     ?? ctx.game.aliveSeats[0]!
 
+  const fakeReasons = [
+    "他发言一直在带节奏但从不给具体理由",
+    "他的站边太坚决了，不像普通好人视角",
+    "他一直在给可疑目标洗地，动机有问题",
+  ]
+  const fakeReason = fakeReasons[(fakeTarget + ctx.game.day) % fakeReasons.length]!
+
   const templates = [
-    `我是${seat}号，真正的预言家。${fakeTarget}号才是我的查杀。对面那个是假预言家，请大家注意辨别。`,
-    `${seat}号预言家亮身份。我的查验结果：${fakeTarget}号是狼。刚才跳的那位是悍跳狼，大家别被带偏。`,
-    `我是${seat}号预言家，昨晚查杀${fakeTarget}号。对面在悍跳想保队友，请好人站我这边。`,
+    `我是${seat}号，必须跳出来了。我是真预言家，昨晚查杀${fakeTarget}号——${fakeReason}。对面那个是悍跳狼，他的查验逻辑根本站不住脚，请大家注意辨别。`,
+    `${seat}号预言家亮身份。我验了${fakeTarget}号是查杀，理由很简单——${fakeReason}。刚才跳的那位是悍跳狼，想保队友，大家别被带偏。`,
+    `我是${seat}号预言家，昨晚查杀${fakeTarget}号。我分析了一下他的发言——${fakeReason}，铁狼无疑。对面在悍跳想保队友，请好人站我这边。`,
   ]
   return templates[variant]!
 }
@@ -499,10 +520,17 @@ function buildSeerClaimSpeech(ctx: AgentContext): string {
   const variant = (seat + ctx.game.day) % 3
 
   if (aliveWolfCheck) {
+    const wolfReasons = [
+      "他的发言一直在带节奏但逻辑断裂",
+      "他的站边和票型完全对不上",
+      "他在刻意回避关键矛盾点",
+    ]
+    const wolfReason = wolfReasons[(aliveWolfCheck.target + ctx.game.day) % wolfReasons.length]!
+
     const templates = [
-      `我是${seat}号预言家，昨晚查杀${aliveWolfCheck.target}号。请大家今天归票出他。`,
-      `我是${seat}号，预言家。${aliveWolfCheck.target}号是查杀，铁狼无疑。所有好人跟我票。`,
-      `${seat}号预言家亮身份。查验结果：${aliveWolfCheck.target}号是狼。今天必须出这个位置。`,
+      `我是${seat}号预言家，昨晚查杀${aliveWolfCheck.target}号。我验他的原因是他在场上的表现一直很可疑——${wolfReason}。请大家今天归票出他，铁狼无疑。`,
+      `我是${seat}号，必须跳预言家了。${aliveWolfCheck.target}号是查杀，我分析了他的发言——${wolfReason}。所有好人跟我票，今天必须出这个位置。`,
+      `${seat}号预言家亮身份。查验结果：${aliveWolfCheck.target}号是狼。我验他的逻辑很简单——${wolfReason}。今天必须出他，好人别分票。`,
     ]
     return templates[variant]!
   }
@@ -510,9 +538,9 @@ function buildSeerClaimSpeech(ctx: AgentContext): string {
   // 残局或被推时，报金水信息
   const goodCheckStr = goodChecks.map((c) => `${c.target}号金水`).join("、")
   if (isSelfBeingPushed(ctx)) {
-    return `我是${seat}号预言家，别急着推我。我的查验信息：${goodCheckStr || "暂无关键结果"}。请给我时间继续验人。`
+    return `我是${seat}号预言家，别急着推我。我已经验了${goodChecks.length}个人，${goodCheckStr || "暂无明确金水"}。从局势分析，推我对好人没有任何收益，请给我时间继续验人找狼。`
   }
-  return `我是${seat}号预言家，目前查验结果：${goodCheckStr || "暂无查杀"}。局势紧张我选择亮身份，请好人保护我。`
+  return `我是${seat}号预言家，目前查验结果：${goodCheckStr || "暂无查杀"}。我分析一下当前局势——狼队压力已经很大了，我选择亮身份带队，请好人保护我继续验人。`
 }
 
 function buildPublicSpeech(ctx: AgentContext): string {
@@ -524,15 +552,27 @@ function buildPublicSpeech(ctx: AgentContext): string {
   const seat = ctx.self.seat
   const variant = (seat + ctx.game.day) % 3
 
+  // 构建动态的推理理由
+  const suspicionReasons = [
+    "发言前后逻辑不一致，站边摇摆",
+    "投票动机可疑，一直在给可疑目标冲票",
+    "发言信息量太少，像是在刻意隐藏视角",
+    "对跳时站边太坚决，不像普通好人视角",
+    "一直在带节奏但从不给出具体理由",
+  ]
+  const suspicionReason = voteTarget
+    ? suspicionReasons[(voteTarget + ctx.game.day) % suspicionReasons.length]!
+    : "发言和票型都不太舒服"
+
   switch (ctx.self.role) {
     case "werewolf": {
       if (shouldWolfFakeClaim(ctx)) {
         return buildWolfFakeClaimSpeech(ctx)
       }
       const templates = [
-        `我是${seat}号，今天我先点${targetText}。这个位置发言和票型都不太舒服，建议先从这里压轮次。`,
-        `我是${seat}号，${targetText}的逻辑链有断裂，我倾向今天先处理这个位置。大家怎么看？`,
-        `我是${seat}号，综合前几轮信息，${targetText}站边一直很飘。今天不出他我怕后面更难推。`,
+        `我是${seat}号，先复盘一下场上局势。目前好人还没完全抱团，我觉得${targetText}有问题——${suspicionReason}。建议先从这里压轮次，大家怎么看？`,
+        `我是${seat}号，分析了一下前几轮的发言，${targetText}的逻辑链有断裂——${suspicionReason}。我倾向今天先处理这个位置，听听他的解释。`,
+        `我是${seat}号，综合目前的信息来看，${targetText}站边一直很飘——${suspicionReason}。今天不出他我怕后面更难推，建议好人重点关注。`,
       ]
       return templates[variant]!
     }
@@ -541,43 +581,43 @@ function buildPublicSpeech(ctx: AgentContext): string {
         return buildSeerClaimSpeech(ctx)
       }
       if (aliveGoodCheck) {
-        return `我是${seat}号，${aliveGoodCheck.target}号我暂时不进狼坑。今天我更想听${targetText}把逻辑盘清楚。`
+        return `我是${seat}号，从目前的站边和发言分析，${aliveGoodCheck.target}号我暂时不进狼坑。但今天${targetText}的发言让我不太舒服——${suspicionReason}。我想听他把自己的逻辑盘清楚。`
       }
-      return `我是${seat}号，我会继续从发言和票型里找狼。当前我更怀疑${targetText}。`
+      return `我是${seat}号，我会继续从发言和票型里找狼。当前我分析了一下，${targetText}比较可疑——${suspicionReason}。建议好人重点关注这个位置。`
     case "witch":
       if (ctx.privateState.wolfVictimSeat && ctx.privateState.wolfVictimSeat !== voteTarget) {
-        return `我是${seat}号，今天别急着把${ctx.privateState.wolfVictimSeat}号推上去。相较之下，${targetText}更像在带偏节奏。`
+        return `我是${seat}号，从昨晚的局势来看，今天别急着把${ctx.privateState.wolfVictimSeat}号推上去。我分析了一下，${targetText}的问题更大——${suspicionReason}。相较之下，${targetText}更像在带偏节奏。`
       }
-      return `我是${seat}号，我先看${targetText}。这个位置今天的站边和发言都需要补解释。`
+      return `我是${seat}号，我先从发言逻辑分析。${targetText}今天的站边和表态需要补解释——${suspicionReason}。如果给不出合理说明，我建议今天先出这个位置。`
     case "guard": {
       const guardTemplates = [
-        `我是${seat}号，今天先根据发言和死亡信息找狼。当前我更想听${targetText}。`,
-        `我是${seat}号，刀口信息很关键。我觉得${targetText}需要给个解释，不然今天先出这里。`,
-        `我是${seat}号，我会重点看票型和站边。${targetText}今天的表态让我不太舒服。`,
+        `我是${seat}号，先从刀型和死亡信息入手分析。当前局势下，${targetText}的表现不太对劲——${suspicionReason}。我想先听听他的解释。`,
+        `我是${seat}号，刀口信息很关键。我分析了一下发言，${targetText}需要给个说法——${suspicionReason}。不然今天先出这里我觉得没问题。`,
+        `我是${seat}号，我会重点看票型和站边的一致性。${targetText}今天的表态让我不太舒服——${suspicionReason}。建议好人一起分析这个位置。`,
       ]
       if (ctx.privateState.lastGuardTarget) {
-        return `我是${seat}号，我会重点看刀口和票型。${ctx.privateState.lastGuardTarget}号这轮先别轻易扛推，我更想听${targetText}。`
+        return `我是${seat}号，从刀口信息来看，${ctx.privateState.lastGuardTarget}号这轮先别轻易扛推。但我分析了一下，${targetText}问题更大——${suspicionReason}。我想重点听听他的发言。`
       }
       return guardTemplates[variant]!
     }
     case "hunter": {
       const hunterTemplates = [
-        `我是${seat}号，我不想把轮次浪费在空转上。今天我倾向先出${targetText}，理由是这个位置最像在躲票型。`,
-        `我是${seat}号，${targetText}今天必须给个说法。不然我这票就归过去了。`,
-        `我是${seat}号，场上信息够多了。${targetText}的逻辑和行为对不上，今天先处理。`,
+        `我是${seat}号，我不想把轮次浪费在空转上。分析了一下场上信息，${targetText}最可疑——${suspicionReason}。今天我倾向先出这个位置，理由充分。`,
+        `我是${seat}号，${targetText}今天必须给个说法。我分析了他的发言和票型——${suspicionReason}。不然我这票就归过去了。`,
+        `我是${seat}号，场上信息够多了。${targetText}的逻辑和行为对不上——${suspicionReason}。今天先处理这个位置，好人别分票。`,
       ]
       return hunterTemplates[variant]!
     }
     case "villager": {
       const villagerTemplates = [
-        `我是${seat}号村民，信息不多但我先点${targetText}。这个位置前后发言和投票倾向对不上。`,
-        `我是${seat}号，作为村民我只能靠逻辑。${targetText}今天的站边让我觉得有问题。`,
-        `我是${seat}号，我没有特殊信息，但从发言来看${targetText}最可疑。建议大家关注一下。`,
+        `我是${seat}号村民，信息不多但我认真听了场上发言。分析下来${targetText}有问题——${suspicionReason}。这个位置前后发言和投票倾向对不上，建议重点关注。`,
+        `我是${seat}号，作为村民我只能靠逻辑分析。我梳理了一下${targetText}的发言——${suspicionReason}。他今天的站边让我觉得有问题。`,
+        `我是${seat}号，我没有特殊信息，但从公开发言来看${targetText}最可疑——${suspicionReason}。我建议大家一起分析一下这个位置。`,
       ]
       return villagerTemplates[variant]!
     }
     default:
-      return `我是${seat}号，我先听场上发言。`
+      return `我是${seat}号，我先听场上发言。目前我分析下来，${targetText}有一些疑点——${suspicionReason}。`
   }
 }
 
@@ -736,10 +776,10 @@ export function buildLastWordsSpeech(ctx: AgentContext): string {
 
   switch (ctx.self.role) {
     case "seer": {
-      // 预言家遗言：公布所有查验结果
+      // 预言家遗言：公布所有查验结果并分析
       const wolfChecks = seerChecks.filter((c) => c.isWolf)
       const goodChecks = seerChecks.filter((c) => !c.isWolf)
-      const parts: string[] = [`我是真预言家。`]
+      const parts: string[] = [`我是真预言家，走了之前必须把信息留给好人。`]
       if (wolfChecks.length > 0) {
         parts.push(`查杀：${wolfChecks.map((c) => `${c.target}号`).join("、")}是狼！`)
       }
@@ -747,36 +787,44 @@ export function buildLastWordsSpeech(ctx: AgentContext): string {
         parts.push(`金水：${goodChecks.map((c) => `${c.target}号`).join("、")}是好人。`)
       }
       if (seerChecks.length === 0) {
-        parts.push(`我还没来得及验出有用信息，大家注意场上逻辑。`)
+        parts.push(`我还没来得及验出有用信息，但从目前的发言逻辑来看，注意分析谁在带节奏、谁的票型有问题。`)
+      } else {
+        parts.push(`请大家根据我的查验信息重新梳理局势，别让狼队带偏了。`)
       }
       return parts.join("")
     }
     case "werewolf": {
-      // 狼人遗言：误导方向，不暴露队友
+      // 狼人遗言：误导方向，不暴露队友，给出看似有理的推理
       const teammates = new Set(ctx.knowledge.wolfTeammates ?? [])
       const innocentTargets = ctx.game.aliveSeats.filter((s) => s !== seat && !teammates.has(s))
       const fakeTarget = innocentTargets.length > 0 ? innocentTargets[variant % innocentTargets.length] : ctx.game.aliveSeats[0]
+      const fakeReasons = [
+        "他的发言前后不一致",
+        "他的投票动机很可疑",
+        "他一直在带节奏但逻辑站不住脚",
+      ]
+      const fakeReason = fakeReasons[(fakeTarget as number + ctx.game.day) % fakeReasons.length]!
       const templates = [
-        `我走了，但我觉得${fakeTarget}号不对。大家注意他的票型和站边。`,
-        `我是好人，被冤了。${fakeTarget}号的逻辑一直有问题，希望大家重新审视。`,
-        `我没什么好说的，但${fakeTarget}号绝对不干净。后面的人注意。`,
+        `我走了，但我是好人被冤的。我分析了一下，${fakeTarget}号有问题——${fakeReason}。大家注意他的票型和站边。`,
+        `我是好人，被冤了。${fakeTarget}号的逻辑一直有问题——${fakeReason}，希望大家重新审视。`,
+        `我没什么好说的，但${fakeTarget}号绝对不干净——${fakeReason}。后面的人注意分析他的发言。`,
       ]
       return templates[variant]!
     }
     case "witch": {
-      // 女巫遗言：透露药物使用信息
+      // 女巫遗言：透露药物使用信息并分析局势
       const templates = [
-        `我是女巫。${ctx.privateState.witchPoisonUsed ? "毒药已经用了。" : "毒药还在。"}大家注意保护好关键角色。`,
-        `女巫遗言：${ctx.privateState.witchAntidoteUsed ? "解药用过了" : "解药还在"}，${ctx.privateState.witchPoisonUsed ? "毒药用过了" : "毒药还在"}。后面的人小心。`,
-        `我是女巫，走之前提醒大家注意场上的票型变化。`,
+        `我是女巫，走之前说一下药的情况：${ctx.privateState.witchAntidoteUsed ? "解药用过了" : "解药还在"}，${ctx.privateState.witchPoisonUsed ? "毒药用过了" : "毒药还在"}。大家注意保护好关键角色，从票型里找狼。`,
+        `女巫遗言：${ctx.privateState.witchAntidoteUsed ? "解药用过了" : "解药还在"}，${ctx.privateState.witchPoisonUsed ? "毒药用过了" : "毒药还在"}。后面的好人小心，注意分析发言矛盾和投票动机。`,
+        `我是女巫，走之前提醒大家注意场上的票型变化。${ctx.privateState.witchPoisonUsed ? "" : "毒药还没用，希望能留给最像狼的。"}好人加油。`,
       ]
       return templates[variant]!
     }
     case "guard": {
       const templates = [
-        `我是守卫。大家注意保护好预言家位置。`,
-        `守卫遗言：后面的夜晚没人守了，大家白天一定要把狼推出去。`,
-        `我是守卫，走了。注意场上谁在带节奏。`,
+        `我是守卫，走了。从刀型分析，狼人可能在针对神职下手，大家注意保护好预言家位置。`,
+        `守卫遗言：后面的夜晚没人守了，从逻辑上分析，狼队刀法有偏好，大家白天一定要把狼推出去。`,
+        `我是守卫，走了。注意场上谁在带节奏、谁的站边和票型对不上，从发言逻辑里找狼。`,
       ]
       return templates[variant]!
     }
@@ -784,9 +832,9 @@ export function buildLastWordsSpeech(ctx: AgentContext): string {
       // 村民或其他角色
       const suspectSeat = ctx.game.aliveSeats.filter((s) => s !== seat)[variant % Math.max(1, ctx.game.aliveSeats.length - 1)]
       const templates = [
-        `我是好人。我觉得${suspectSeat}号有问题，希望大家关注。`,
-        `被冤了。我走之前想说，${suspectSeat}号的发言逻辑不通，大家注意。`,
-        `我没什么好说的，但场上的狼还没出完。大家加油。`,
+        `我是好人。我走之前分析了一下，${suspectSeat}号的发言逻辑有问题，希望大家关注。`,
+        `被冤了。我走之前想说，${suspectSeat}号的站边和票型对不上，大家注意从逻辑上分析。`,
+        `我没什么好说的，但场上的狼还没出完。大家加油，注意分析发言前后是否一致。`,
       ]
       return templates[variant]!
     }

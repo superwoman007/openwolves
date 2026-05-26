@@ -11,9 +11,9 @@ import {
   renderPromptTemplate,
 } from "./prompt-config/loader.js"
 
-export const runAuto = async (g: GameRuntime): Promise<boolean> => {
+export const runAuto = async (g: GameRuntime, onStep?: () => void): Promise<boolean> => {
   const scheduler = createScheduler(g)
-  return scheduler.runAuto()
+  return scheduler.runAuto(onStep)
 }
 
 // Keep legacy helpers for compatibility and potential direct use
@@ -134,6 +134,7 @@ export const generateSpeech = async (g: GameRuntime, seat: number, role: Role) =
 
       const content = await openaiCompatChat(
         {
+          provider: ai.provider,
           baseUrl: ai.baseUrl,
           apiKey: ai.apiKey,
           model: ai.model,

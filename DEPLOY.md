@@ -30,8 +30,8 @@ cp .env.example .env
 | `ALLOWED_ORIGINS` | 是 | http://localhost:5173 | 前端域名，逗号分隔 |
 | `TOKEN_TTL_HOURS` | 否 | 4 | Token 过期时间（小时） |
 | `OPENAI_API_KEY` | 否 | - | LLM API Key（AI 对局需要） |
-| `OPENAI_BASE_URL` | 否 | https://api.openai.com/v1 | LLM API 地址 |
-| `OPENAI_MODEL` | 否 | gpt-4o-mini | LLM 模型名 |
+| `OPENAI_BASE_URL` | 否 | https://api.deepseek.com | LLM API 地址 |
+| `OPENAI_MODEL` | 否 | deepseek-v4-pro | LLM 模型名 |
 | `LLM_TIMEOUT_MS` | 否 | 15000 | LLM 请求超时（毫秒） |
 
 生产环境 `.env` 示例：
@@ -42,8 +42,8 @@ NODE_ENV=production
 ALLOWED_ORIGINS=https://your-domain.com
 TOKEN_TTL_HOURS=4
 OPENAI_API_KEY=sk-xxx
-OPENAI_BASE_URL=https://api.deepseek.com/v1
-OPENAI_MODEL=deepseek-chat
+OPENAI_BASE_URL=https://api.deepseek.com
+OPENAI_MODEL=deepseek-v4-pro
 LLM_TIMEOUT_MS=15000
 ```
 

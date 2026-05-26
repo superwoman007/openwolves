@@ -29,6 +29,41 @@ const roleLabel: Record<Role, string> = {
   villager: "村民",
 }
 
+type SeatRoleSnapshot = {
+  seat: number
+  role: Role
+}
+
+/**
+ * 判断未知数据是否为座位角色快照数组。
+ * @param value 待校验的数据。
+ * @returns 返回是否为合法的座位角色快照数组。
+ */
+const isSeatRoleSnapshotArray = (value: unknown): value is SeatRoleSnapshot[] => {
+  if (!Array.isArray(value)) return false
+  return value.every((item) => {
+    if (!item || typeof item !== "object") return false
+    const snapshot = item as Partial<SeatRoleSnapshot>
+    return typeof snapshot.seat === "number" && typeof snapshot.role === "string" && snapshot.role in roleLabel
+  })
+}
+
+/**
+ * 从回放事件中提取纯观战模式需要展示的角色快照。
+ * @param replay 回放载荷。
+ * @returns 返回按座位号索引的角色映射。
+ */
+const extractSeatRolesFromReplay = (replay: ReplayPayload): Record<number, Role> => {
+  for (let index = replay.events.length - 1; index >= 0; index -= 1) {
+    const event = replay.events[index]
+    if (event.t !== "system" || event.text !== "身份已分配") continue
+    const seatRoles = typeof event.data === "object" && event.data !== null ? (event.data as { seatRoles?: unknown }).seatRoles : undefined
+    if (!isSeatRoleSnapshotArray(seatRoles)) continue
+    return Object.fromEntries(seatRoles.map((item) => [item.seat, item.role]))
+  }
+  return {}
+}
+
 const safeJson = <T,>(text: string): T | null => {
   try {
     return JSON.parse(text) as T
@@ -48,6 +83,7 @@ export default function Game() {
   const [config, setConfig] = useState<GameConfig | null>(null)
   const [state, setState] = useState<GamePublicState | null>(null)
   const [priv, setPriv] = useState<GamePrivateState | null>(null)
+  const [spectatorRoles, setSpectatorRoles] = useState<Record<number, Role>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const esRef = useRef<EventSource | null>(null)
@@ -60,7 +96,10 @@ export default function Game() {
       try {
         const j = await apiGet<{ replay: ReplayPayload }>(`/api/games/${id}/replay`)
         if (!j.success || !("replay" in j)) throw new Error("error" in j ? j.error : "加载失败")
-        if (!cancelled) setConfig(j.replay.config)
+        if (!cancelled) {
+          setConfig(j.replay.config)
+          setSpectatorRoles(extractSeatRolesFromReplay(j.replay))
+        }
       } catch (e) {
         if (!cancelled) setError((e as Error).message)
       }
@@ -175,6 +214,7 @@ export default function Game() {
                 const alive = aliveSet.has(s.seat)
                 const isMe = selfSeat === s.seat
                 const isThinking = state?.thinkingSeats?.includes(s.seat)
+                const visibleRole = selfSeat === null ? spectatorRoles[s.seat] : isMe ? priv?.role : undefined
                 return (
                   <div
                     key={s.seat}
@@ -194,17 +234,21 @@ export default function Game() {
                       </div>
                     </div>
                     <div className="mt-2 text-sm text-white/70">{s.name}</div>
+                    {visibleRole ? (
+                      <div className="mt-2 text-xs tracking-[0.16em] text-[var(--accent)]/80">{roleLabel[visibleRole]}</div>
+                    ) : (
+                      <div className="mt-2 h-[18px]" />
+                    )}
                     <div className="mt-2 flex items-center justify-between text-xs text-white/45">
                       <span>{s.kind === "ai" ? "AI" : "HUMAN"}</span>
-                      <div className="flex items-center gap-2">
-                        {isThinking && (
-                          <span className="inline-flex items-center gap-1 text-amber-400/80">
-                            <Loader2 size={10} className="animate-spin" />
-                            思考中
-                          </span>
-                        )}
-                        {isMe && priv?.role ? <span className="text-white/75">{roleLabel[priv.role]}</span> : <span />}
-                      </div>
+                      {isThinking ? (
+                        <span className="inline-flex items-center gap-1 text-amber-400/80">
+                          <Loader2 size={10} className="animate-spin" />
+                          思考中
+                        </span>
+                      ) : (
+                        <span />
+                      )}
                     </div>
                   </div>
                 )
@@ -243,7 +287,7 @@ export default function Game() {
             title="行动"
             subtitle={selfSeat !== null ? `你是 ${selfSeat}号` : "纯观战：不占座位"}
             right={
-              state && (state.phase === "day_speech" || state.phase === "day_vote" || state.phase === "day_vote_pk") ? (
+              selfSeat !== null && state && (state.phase === "day_speech" || state.phase === "day_vote" || state.phase === "day_vote_pk") ? (
                 <button
                   className={cn(
                     "inline-flex items-center gap-2 rounded-md border border-white/15 bg-black/40 px-3 py-1 text-xs text-white/75 hover:bg-white/10",
@@ -288,14 +332,25 @@ export default function Game() {
 }
 
 function EventCard({ e, idx }: { e: GameEvent; idx: number }) {
+  const isModeratorCommentary = e.t === "system"
+    && typeof e.data === "object"
+    && e.data !== null
+    && "kind" in e.data
+    && e.data.kind === "moderator_commentary"
+
   return (
     <div
-      className="animate-fade-in rounded-md border border-white/10 bg-white/[0.03] px-3 py-2"
+      className={cn(
+        "animate-fade-in rounded-md border px-3 py-2",
+        isModeratorCommentary
+          ? "border-amber-400/20 bg-amber-500/[0.05]"
+          : "border-white/10 bg-white/[0.03]",
+      )}
       style={{ animationDelay: `${Math.min(idx * 80, 400)}ms` }}
     >
       <div className="flex items-center justify-between gap-3 text-[11px] tracking-[0.18em] text-white/45">
         <span>{new Date(e.ts).toLocaleTimeString()}</span>
-        <EventTypeBadge t={e.t} />
+        <EventTypeBadge event={e} />
       </div>
       <div className="mt-1 text-sm text-white/80">
         {e.t === "chat_public" ? (
@@ -326,7 +381,9 @@ function EventCard({ e, idx }: { e: GameEvent; idx: number }) {
             🐺 狼人频道 {e.seat}号：{e.text}
           </span>
         ) : e.t === "system" ? (
-          <span className="text-white/55">{e.text}</span>
+          <span className={isModeratorCommentary ? "text-amber-100/90" : "text-white/55"}>
+            {isModeratorCommentary ? `裁判旁白：${e.text}` : e.text}
+          </span>
         ) : (
           <span>-</span>
         )}
@@ -335,7 +392,13 @@ function EventCard({ e, idx }: { e: GameEvent; idx: number }) {
   )
 }
 
-function EventTypeBadge({ t }: { t: GameEvent["t"] }) {
+function EventTypeBadge({ event }: { event: GameEvent }) {
+  const isModeratorCommentary = event.t === "system"
+    && typeof event.data === "object"
+    && event.data !== null
+    && "kind" in event.data
+    && event.data.kind === "moderator_commentary"
+
   const colors: Record<string, string> = {
     chat_public: "bg-white/[0.06] text-white/50",
     phase: "bg-[var(--accent)]/10 text-[var(--accent)]/70",
@@ -346,8 +409,13 @@ function EventTypeBadge({ t }: { t: GameEvent["t"] }) {
     system: "bg-white/[0.06] text-white/40",
   }
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-[10px] uppercase", colors[t] ?? "bg-white/[0.06] text-white/40")}>
-      {t}
+    <span
+      className={cn(
+        "rounded px-1.5 py-0.5 text-[10px] uppercase",
+        isModeratorCommentary ? "bg-amber-500/10 text-amber-300/70" : colors[event.t] ?? "bg-white/[0.06] text-white/40",
+      )}
+    >
+      {isModeratorCommentary ? "narrator" : event.t}
     </span>
   )
 }

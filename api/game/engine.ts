@@ -88,7 +88,17 @@ export const startGame = (g: GameRuntime) => {
     s.role = roles[idx]
   })
   syncAgentRegistrySeats(g)
-  g.events.push({ t: "system", ts: Date.now(), text: "身份已分配" })
+  g.events.push({
+    t: "system",
+    ts: Date.now(),
+    text: "身份已分配",
+    data: {
+      seatRoles: g.seats.map((s) => ({
+        seat: s.seat,
+        role: s.role,
+      })),
+    },
+  })
 
   g.day = 1
   g.phase = "night"

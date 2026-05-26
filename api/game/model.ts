@@ -51,6 +51,7 @@ export type AgentRuntimeState = {
   registry: AgentRegistry | null
   lastModeratorAnnouncementKey: string | null
   lastModeratorHintKey: string | null
+  lastModeratorCommentaryKey: string | null
   circuitBreaker: Map<number, number>
 }
 
@@ -88,6 +89,7 @@ export const createAgentRuntimeState = (): AgentRuntimeState => ({
   registry: null,
   lastModeratorAnnouncementKey: null,
   lastModeratorHintKey: null,
+  lastModeratorCommentaryKey: null,
   circuitBreaker: new Map(),
 })
 

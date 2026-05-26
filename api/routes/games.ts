@@ -32,10 +32,18 @@ router.post("/", createGameLimiter, (req: Request, res: Response) => {
   }
 })
 
-// --- Protected endpoints (require seat token) ---
+// --- Mixed access endpoints ---
 
-router.post("/:id/start", requireAuth, async (req: Request, res: Response) => {
+router.post("/:id/start", async (req: Request, res: Response) => {
   try {
+    const canStartWithoutAuth = await games.canStartWithoutAuth(req.params.id)
+    if (!canStartWithoutAuth) {
+      let isAuthed = false
+      requireAuth(req, res, () => {
+        isAuthed = true
+      })
+      if (!isAuthed) return
+    }
     const state = await games.startGame(req.params.id)
     res.status(200).json({ success: true, state })
   } catch (e) {
@@ -43,7 +51,7 @@ router.post("/:id/start", requireAuth, async (req: Request, res: Response) => {
   }
 })
 
-router.get("/:id/state", requireAuth, (req: Request, res: Response) => {
+router.get("/:id/state", (req: Request, res: Response) => {
   try {
     const state = games.getPublicState(req.params.id)
     res.status(200).json({ success: true, state })
@@ -52,7 +60,7 @@ router.get("/:id/state", requireAuth, (req: Request, res: Response) => {
   }
 })
 
-router.get("/:id/events", requireAuth, (req: Request, res: Response) => {
+router.get("/:id/events", (req: Request, res: Response) => {
   let unsubscribe: (() => void) | null = null
   try {
     const initial = games.getPublicState(req.params.id)
@@ -138,7 +146,7 @@ router.post("/:id/advance", requireAuth, gameLimiter, async (req: Request, res: 
   }
 })
 
-router.get("/:id/replay", requireAuth, async (req: Request, res: Response) => {
+router.get("/:id/replay", async (req: Request, res: Response) => {
   try {
     const replay = await games.getReplay(req.params.id)
     res.status(200).json({ success: true, replay })

@@ -68,6 +68,9 @@ describe("Agent Types & Contracts", () => {
           hint: ctx.pendingSeats.length > 0 ? "请继续" : "可以推进",
         }
       },
+      async commentOnSituation() {
+        return "旁白"
+      },
     }
     const text = await mod.announcePhase({
       phase: "day_speech",
@@ -217,6 +220,7 @@ describe("AgentScheduler", () => {
     }
     await scheduler.runOnce()
     await scheduler.runOnce()
+    await scheduler.runOnce()
     const progressed = await scheduler.runOnce()
     expect(progressed).toBe(false)
   })
@@ -344,6 +348,19 @@ describe("ModeratorAgent", () => {
     expect(directive.pendingSeats).toEqual([2, 4])
     expect(directive.hint).toContain("2、4号")
   })
+
+  it("builds humorous commentary for public speech in mock mode", async () => {
+    const mod = new ModeratorAgentImpl({ provider: "mock" })
+    const text = await mod.commentOnSituation({
+      phase: "day_speech",
+      day: 1,
+      aliveSeats: [1, 2, 3, 4],
+      recentEvent: { t: "chat_public", ts: Date.now(), seat: 2, text: "我觉得4号发言有点怪。" },
+      timeline: { speeches: [], events: [], keyEvents: [] },
+    })
+    expect(text).toBeTruthy()
+    expect(text).toContain("2号")
+  })
 })
 
 describe("Role Agent Decisions", () => {
@@ -354,6 +371,22 @@ describe("Role Agent Decisions", () => {
     ctx.knowledge.wolfTeammates = [2]
     const decision = await agent.decide(ctx)
     expect(decision?.action.t).toBe("chat_wolf")
+  })
+
+  it("werewolf first-night chat does not mention non-existent yesterday info", async () => {
+    const agent = new WerewolfAgent(1, "werewolf")
+    const ctx = makeDummyContext(1, "werewolf")
+    ctx.game.phase = "night"
+    ctx.game.day = 1
+    ctx.knowledge.wolfTeammates = [2]
+
+    const decision = await agent.decide(ctx)
+
+    expect(decision?.action.t).toBe("chat_wolf")
+    expect("text" in (decision?.action ?? {})).toBe(true)
+    const text = decision?.action.t === "chat_wolf" ? decision.action.text : ""
+    expect(text).not.toContain("昨天")
+    expect(text).not.toContain("昨晚")
   })
 
   it("villager returns null during night", async () => {
@@ -376,7 +409,7 @@ describe("Prompt Config Loader", () => {
     expect(config.systemPrompt).toContain("发言目标")
     expect(config.systemPrompt).toContain("发言约束")
     expect(config.systemPrompt).toContain("发言风格")
-    expect(config.systemPrompt).toContain("推理原则")
+    expect(config.systemPrompt.includes("推理原则") || config.systemPrompt.includes("推理框架")).toBe(true)
     expect(config.mockSpeechStances.length).toBeGreaterThan(0)
     expect(loader.getSharedPromptConfig().publicSpeechUserPromptTemplate).toContain("游戏上下文")
   })

@@ -52,12 +52,13 @@ export class LLMRoleAgent extends BaseRoleAgent {
 
     const llmPromise = openaiCompatChat(
       {
+        provider: this.aiConfig.provider,
         baseUrl: this.aiConfig.baseUrl,
         apiKey: this.aiConfig.apiKey,
         model: this.aiConfig.model,
         temperature,
         responseFormat: { type: "json_object" },
-        maxTokens: 300,
+        maxTokens: 500,
       },
       [
         { role: "system", content: systemPrompt },
@@ -124,7 +125,7 @@ export class LLMRoleAgent extends BaseRoleAgent {
     }
 
     if (phase === "day_speech") {
-      return `请给出你的公开发言（2-3句中文）。回复action="chat_public"，speech=你的发言内容。`
+      return `请给出你的公开发言。要求：\n1. 先在thinking中写出完整的推理过程（局势复盘→身份推断→矛盾识别→策略决定）\n2. 然后在speech中给出3-5句中文公开发言，必须包含具体的怀疑对象和详细的推理理由\n3. 回复action="chat_public"，speech=你的发言内容。`
     }
 
     if (phase === "day_vote" || phase === "day_vote_pk") {

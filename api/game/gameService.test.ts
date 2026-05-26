@@ -61,8 +61,11 @@ describe("GameService with persistence", () => {
     await tick();
 
     const replay = await service.getReplay(gameId);
+    const assignmentEvent = replay.events.find((e: any) => e.t === "system" && e.text === "身份已分配");
+    const seatRoles = (assignmentEvent as { data?: { seatRoles?: Array<{ seat: number; role: string }> } } | undefined)?.data?.seatRoles;
     expect(replay.gameId).toBe(gameId);
     expect(replay.events.length).toBeGreaterThan(0);
+    expect(seatRoles).toHaveLength(replay.config.seats.length);
   });
 
   it("can recover game from store after simulated restart", async () => {
